@@ -42,9 +42,13 @@ class KubeAuth:
             if serviceaccount is not None
             else "/var/run/secrets/kubernetes.io/serviceaccount"
         )
-        self._kubeconfig_path = kubeconfig or os.environ.get(
-            "KUBECONFIG", "~/.kube/config"
+        self._kubeconfig_path = (
+            kubeconfig or os.environ.get("KUBECONFIG", "~/.kube/config")
+            if not kubeconfig and isinstance(kubeconfig, str)
+            else None
         )
+
+        self.kubeconfig = KubeConfigSet(kubeconfig)
         self.__auth_lock = anyio.Lock()
 
     def __await__(self):
@@ -54,14 +58,14 @@ class KubeAuth:
 
         return f().__await__()
 
-    async def reauthenticate(self) -> None:
+    async def reauthenticate(self, kubeconfig) -> None:
         """Reauthenticate with the server."""
         async with self.__auth_lock:
             if self._url:
                 self.server = self._url
             else:
-                if self._kubeconfig_path is not False:
-                    await self._load_kubeconfig()
+                if self._kubeconfig_path is not False or self.kubeconfig:
+                    await self._load_kubeconfig(kubeconfig)
                 if self._serviceaccount and not self.server:
                     await self._load_service_account()
             if not self.server:
@@ -89,12 +93,16 @@ class KubeAuth:
                 sslcontext.load_verify_locations(cafile=self.server_ca_file)
             return sslcontext
 
-    async def _load_kubeconfig(self) -> None:
+    async def _load_kubeconfig(self, kubeconfig) -> None:
         """Load kubernetes auth from kubeconfig."""
-        self._kubeconfig_path = os.path.expanduser(self._kubeconfig_path)
-        if not os.path.exists(self._kubeconfig_path):
-            return
-        self.kubeconfig = await KubeConfigSet(*self._kubeconfig_path.split(":"))
+        if self._kubeconfig_path and os.path.exists(self._kubeconfig_path):
+            self._kubeconfig_path = os.path.expanduser(self._kubeconfig_path)
+
+        if self._kubeconfig_path:
+            self.kubeconfig = await KubeConfigSet(*self._kubeconfig_path.split(":"))
+        else:
+            self.kubeconfig = await KubeConfigSet(kubeconfig)
+
         if self._use_context:
             try:
                 self._context = self.kubeconfig.get_context(self._use_context)

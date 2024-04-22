@@ -3,6 +3,8 @@
 import asyncio
 import threading
 
+import frozendict
+
 from kr8s._api import Api as _AsyncApi
 
 
@@ -52,7 +54,8 @@ async def api(
         _cls = _SyncApi
 
     async def _f(**kwargs):
-        key = frozenset(kwargs.items())
+        key = frozendict.deepfreeze(kwargs)
+        # key = frozenset(kwargs.items())
         thread_id = threading.get_ident()
         try:
             loop_id = id(asyncio.get_running_loop())

@@ -18,8 +18,11 @@ from kr8s._data_utils import dict_list_pack, list_dict_unpack
 
 
 class KubeConfigSet(object):
-    def __init__(self, *paths):
-        self._configs = [KubeConfig(path) for path in paths]
+    def __init__(self, *kubeconfigs):
+        if isinstance(kubeconfigs, dict):
+            self_configs[KubeConfig(kubeconfig)]
+        else:
+            self._configs = [KubeConfig(kubeconfig) for kubeconfig in kubeconfigs]
 
     def __await__(self):
         async def f():
@@ -160,23 +163,25 @@ class KubeConfigSet(object):
 
 
 class KubeConfig(object):
-    def __init__(self, path):
+    def __init__(self, path, raw):
         self.path = path
-        self._raw = None
+        self._raw = raw
         self.__write_lock = anyio.Lock()
 
     def __await__(self):
         async def f():
-            async with await anyio.open_file(self.path) as fh:
-                self._raw = yaml.safe_load(await fh.read())
+            if not self._raw:
+                async with await anyio.open_file(self.path) as fh:
+                    self._raw = yaml.safe_load(await fh.read())
             return self
 
         return f().__await__()
 
     async def save(self) -> None:
-        async with self.__write_lock:
-            async with await anyio.open_file(self.path, "w") as fh:
-                await fh.write(yaml.safe_dump(self._raw))
+        if not self._raw:
+            async with self.__write_lock:
+                async with await anyio.open_file(self.path, "w") as fh:
+                    await fh.write(yaml.safe_dump(self._raw))
 
     @property
     def current_context(self) -> str:

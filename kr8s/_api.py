@@ -11,6 +11,7 @@ import warnings
 import weakref
 from typing import AsyncGenerator, Dict, List, Tuple, Union
 
+import frozendict
 import httpx
 import httpx_ws
 from asyncache import cached
@@ -47,6 +48,7 @@ class Api(object):
 
         self._url = kwargs.get("url")
         self._kubeconfig = kwargs.get("kubeconfig")
+
         self._serviceaccount = kwargs.get("serviceaccount")
         self._session = None
         self.auth = KubeAuth(
@@ -64,7 +66,7 @@ class Api(object):
         thread_loop_id = f"{thread_id}.{loop_id}"
         if thread_loop_id not in Api._instances:
             Api._instances[thread_loop_id] = weakref.WeakValueDictionary()
-        Api._instances[thread_loop_id][frozenset(kwargs.items())] = self
+        Api._instances[thread_loop_id][frozendict.deepfreeze(kwargs)] = self
 
     def __await__(self):
         async def f():

@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2023-2024, Kr8s Developers (See LICENSE for list)
 # SPDX-License-Identifier: BSD 3-Clause License
 from functools import partial, update_wrapper
+from typing import Union
 
 import kr8s.objects  # noqa
 
@@ -95,7 +96,7 @@ def get(*args, **kwargs):
 
 def api(
     url: str = None,
-    kubeconfig: str = None,
+    kubeconfig: Union[str, dict] = None,
     serviceaccount: str = None,
     namespace: str = None,
     context: str = None,
@@ -108,8 +109,8 @@ def api(
     ----------
     url : str, optional
         The URL of the Kubernetes API server
-    kubeconfig : str, optional
-        The path to a kubeconfig file to use
+    kubeconfig : str or dict, optional
+        The path or a dict of kubeconfig file to use
     serviceaccount : str, optional
         The path of a service account to use
     namespace : str, optional
